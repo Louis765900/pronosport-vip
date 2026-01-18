@@ -5,20 +5,20 @@ export const maxDuration = 60;
 
 export async function GET(req: Request) {
   try {
-    // 1. Vérification des clés
+    // 1. VERIFICATION DES CLES
     const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
-    const pplxKey = process.env.PERPLEXITY_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY; // Clé Groq
     const footballKey = process.env.API_FOOTBALL_KEY;
     const footballHost = process.env.API_FOOTBALL_HOST || 'v3.football.api-sports.io';
 
-    if (!telegramToken || !chatId || !pplxKey || !footballKey) {
-      return NextResponse.json({ error: "Clés API manquantes" }, { status: 500 });
+    if (!telegramToken || !chatId || !groqKey || !footballKey) {
+      return NextResponse.json({ error: "Clés manquantes (Vérifie GROQ_API_KEY sur Vercel)" }, { status: 500 });
     }
 
-    // 2. Récupération des matchs
+    // 2. RECUPERATION DES MATCHS
     const today = new Date().toISOString().split('T')[0];
-    const leaguesIds = "2-39-61-135-140-78-6-9"; // J'ai ajouté quelques ligues (Coupes, etc.)
+    const leaguesIds = "2-39-61-135-140-78"; // LDC, PL, L1, Serie A, Liga, Bundesliga
     
     const footResponse = await fetch(`https://v3.football.api-sports.io/fixtures?date=${today}&ids=${leaguesIds}`, {
       headers: {
@@ -28,84 +28,84 @@ export async function GET(req: Request) {
     });
     
     const footData = await footResponse.json();
-    let matchesList = "Aucun match majeur trouvé dans l'API.";
+    let matchesList = "Pas de matchs majeurs aujourd'hui. Invente une analyse sur l'actu foot.";
 
     if (footData.response && footData.response.length > 0) {
-      // On prend les 10 premiers matchs pour ne pas surcharger l'IA
+      // On prend les 15 premiers matchs pour l'IA
       matchesList = footData.response.slice(0, 15).map((m: any) => 
-        `- ${m.league.name}: ${m.teams.home.name} vs ${m.teams.away.name} (Heure: ${m.fixture.date.split('T')[1].slice(0,5)})`
+        `- ${m.league.name}: ${m.teams.home.name} vs ${m.teams.away.name} (${m.fixture.date.split('T')[1].slice(0,5)})`
       ).join('\n');
     }
 
-    // 3. Le Prompt "Mode Silencieux"
-    const promptIA = `
-      Tu es un BOT de notification automatique. Tu n'es PAS un assistant conversationnel.
-      
-      INPUT (Liste des matchs) :
+    // 3. GENERATION DU TEXTE VIA GROQ (Llama 3)
+    const promptUser = `
+      Tu es un expert en paris sportifs professionnel.
+      Voici les matchs du jour :
       ${matchesList}
 
       TÂCHE :
-      Crée un post Telegram pour "La Passion VIP" avec les 3 meilleures affiches.
+      Sélectionne les 3 meilleures affiches et rédige le post Telegram.
 
-      RÈGLES IMPÉRATIVES (Si tu ne respectes pas, le système crash) :
-      1. NE METS AUCUNE INTRODUCTION. Pas de "Voici le récap", pas de "Je dois clarifier".
-      2. Commence DIRECTEMENT par l'émoji 👋.
-      3. Utilise exactement ce format visuel :
-
-      👋 *Le Récap VIP du ${today}*
+      FORMAT STRICT (Respecte les émojis et sauts de ligne) :
+      
+      👋 *La Sélection VIP du ${today}*
 
       ➖➖➖➖➖➖➖
 
       ⚽ **[Equipe A] vs [Equipe B]**
-      🏆 *[Nom de la Ligue]*
-      💎 Tendance : [Vainqueur ou Double Chance]
-      💥 Coup de Poker : [Buteur ou Score Exact]
-      📝 [Analyse tactique en 15 mots max]
-
+      🏆 *[Ligue]*
+      💎 Safe : [Prono fiable]
+      💥 Fun : [Prono risqué]
+      
       (Répète pour les 2 autres matchs)
 
       ➖➖➖➖➖➖➖
       
-      👉 *Retrouvez l'analyse détaillée sur le site !*
+      👉 *Analyse détaillée sur le site !*
+
+      IMPORTANT : Ne mets AUCUNE introduction. Commence direct par 👋.
     `;
 
-    const aiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+    const aiResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${pplxKey}`,
+        'Authorization': `Bearer ${groqKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "sonar-pro",
-        messages: [{ role: "user", content: promptIA }]
+        model: "llama3-70b-8192", // Modèle Gratuit & Puissant
+        messages: [
+          { role: "system", content: "Tu es un bot Telegram strict." },
+          { role: "user", content: promptUser }
+        ],
+        temperature: 0.6,
       }),
     });
 
     const aiJson = await aiResponse.json();
+    
+    if (aiJson.error) {
+        console.error("Erreur Groq:", aiJson.error);
+        return NextResponse.json({ error: "Erreur IA Groq" }, { status: 500 });
+    }
+
     let finalMessage = aiJson.choices?.[0]?.message?.content || "Erreur analyse.";
 
-    // NETTOYAGE DE SÉCURITÉ
-    // Si l'IA est têtue et ajoute quand même du texte avant, on coupe tout ce qui est avant "👋"
+    // Nettoyage de sécurité
     if (finalMessage.includes("👋")) {
       finalMessage = finalMessage.substring(finalMessage.indexOf("👋"));
     }
 
-    // Remplacement des termes pour faire "VIP"
-    finalMessage = finalMessage
-      .replace(/Tendance/g, "Safe")
-      .replace(/Coup de Poker/g, "Fun");
-
-    // 4. Envoi Telegram
+    // 4. ENVOI TELEGRAM
     const telegramUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
     const params = new URLSearchParams({
       chat_id: chatId,
       text: finalMessage,
-      // On désactive le markdown auto pour éviter les bugs si l'IA met des astérisques bizarres
     });
 
     await fetch(`${telegramUrl}?${params}`);
 
-    return NextResponse.json({ success: true, message: "Message envoyé !" });
+    return NextResponse.json({ success: true, message: "Envoyé avec Groq !" });
 
   } catch (error) {
     console.error("Erreur Cron:", error);
