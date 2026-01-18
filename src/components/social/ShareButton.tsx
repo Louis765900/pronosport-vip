@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Share2, Download, Twitter, Copy, Check, X, Loader2 } from 'lucide-react'
+import { Share2, Download, Twitter, Copy, Check, X, Loader2, Send } from 'lucide-react' // J'ai ajouté Send ici
 import html2canvas from 'html2canvas'
 import { toast } from 'sonner'
 import { Match, PronosticResponse } from '@/types'
@@ -29,9 +29,12 @@ export function ShareButton({
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  
+  // NOUVEAU STATE POUR TELEGRAM
+  const [sendingTelegram, setSendingTelegram] = useState(false)
+  
   const ticketRef = useRef<HTMLDivElement>(null)
 
-  // Utiliser les logos du match si non fournis en props
   const homeLogoUrl = homeLogo || match.homeTeamLogo
   const awayLogoUrl = awayLogo || match.awayTeamLogo
   const leagueLogoUrl = leagueLogo || match.leagueLogo
@@ -41,31 +44,28 @@ export function ShareButton({
 
     setIsGenerating(true)
     try {
-      // Attendre que les images soient chargees
       const images = ticketRef.current.querySelectorAll('img')
       await Promise.all(
         Array.from(images).map((img) => {
           if (img.complete) return Promise.resolve()
           return new Promise((resolve) => {
             img.onload = resolve
-            img.onerror = resolve // Continue meme si une image echoue
+            img.onerror = resolve
           })
         })
       )
 
-      // Petit delai pour s'assurer que le rendu est termine
       await new Promise(resolve => setTimeout(resolve, 100))
 
       const canvas = await html2canvas(ticketRef.current, {
-        backgroundColor: '#0a0a0a', // Fond noir explicite
-        scale: 2, // Haute resolution
+        backgroundColor: '#0a0a0a',
+        scale: 2,
         logging: false,
-        useCORS: true, // Permettre les images cross-origin
-        allowTaint: true, // Permettre les images "tainted"
-        foreignObjectRendering: false, // Plus compatible
-        imageTimeout: 5000, // Timeout pour les images
+        useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: false,
+        imageTimeout: 5000,
         onclone: (clonedDoc) => {
-          // S'assurer que le conteneur clone est visible
           const clonedElement = clonedDoc.querySelector('[data-ticket-template]')
           if (clonedElement) {
             (clonedElement as HTMLElement).style.position = 'static'
@@ -87,7 +87,6 @@ export function ShareButton({
   const handleOpenModal = async () => {
     setShowModal(true)
     setGeneratedImage(null)
-    // Wait for modal to render, then generate
     setTimeout(() => {
       generateImage()
     }, 200)
@@ -105,6 +104,39 @@ export function ShareButton({
     toast.success('Image telechargee !')
   }
 
+  // --- NOUVELLE FONCTION TELEGRAM ---
+  const handleTelegramBroadcast = async () => {
+    if (!generatedImage) return
+    setSendingTelegram(true)
+
+    try {
+      // Convertir l'image générée (base64) en Blob pour l'envoi
+      const res = await fetch(generatedImage)
+      const blob = await res.blob()
+      
+      const formData = new FormData()
+      formData.append('image', blob, 'ticket.png')
+
+      // Appel à ton API
+      const response = await fetch('/api/telegram/broadcast', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        toast.success('Envoyé sur le canal Telegram VIP ! 🚀')
+      } else {
+        toast.error("Erreur lors de l'envoi Telegram")
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error("Erreur technique Telegram")
+    } finally {
+      setSendingTelegram(false)
+    }
+  }
+  // ----------------------------------
+
   const handleCopyToClipboard = async () => {
     if (!generatedImage) return
 
@@ -118,7 +150,6 @@ export function ShareButton({
       setTimeout(() => setCopied(false), 2000)
       toast.success('Image copiee dans le presse-papiers !')
     } catch (error) {
-      // Fallback: copy text instead
       const text = `${match.homeTeam} vs ${match.awayTeam}\n${pronostic.vip_tickets[ticketType].market}: ${pronostic.vip_tickets[ticketType].selection}\nCote: ${pronostic.vip_tickets[ticketType].odds_estimated}\n\nGenere par La Passion VIP`
       await navigator.clipboard.writeText(text)
       setCopied(true)
@@ -177,7 +208,6 @@ export function ShareButton({
 
               {/* Preview */}
               <div className="p-6 flex flex-col items-center">
-                {/* Hidden template for rendering - position absolue hors ecran */}
                 <div
                   className="absolute"
                   style={{ left: '-9999px', top: 0 }}
@@ -195,7 +225,7 @@ export function ShareButton({
                 </div>
 
                 {/* Image Preview */}
-                <div className="relative w-full max-w-[350px] aspect-[4/5] bg-dark-700 rounded-xl overflow-hidden mb-6">
+                <div className="relative w-full max-w-[350px] aspect-[4/5] bg-dark-700 rounded-xl overflow-hidden mb-6 border border-white/5">
                   {isGenerating ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <Loader2 className="w-8 h-8 text-neon-green animate-spin mb-2" />
@@ -214,12 +244,24 @@ export function ShareButton({
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap justify-center gap-3 w-full">
+                {/* Action Buttons Grid */}
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  {/* Bouton Telegram (NOUVEAU) - Mis en premier et en bleu */}
+                  <motion.button
+                    onClick={handleTelegramBroadcast}
+                    disabled={!generatedImage || isGenerating || sendingTelegram}
+                    className="col-span-2 flex items-center justify-center gap-2 px-4 py-3 bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    {sendingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    Envoyer sur Telegram VIP
+                  </motion.button>
+
                   <motion.button
                     onClick={handleDownload}
                     disabled={!generatedImage || isGenerating}
-                    className="flex items-center gap-2 px-4 py-2 bg-neon-green text-dark-900 font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-neon-green text-dark-900 font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -230,33 +272,25 @@ export function ShareButton({
                   <motion.button
                     onClick={handleCopyToClipboard}
                     disabled={!generatedImage || isGenerating}
-                    className="flex items-center gap-2 px-4 py-2 bg-dark-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-dark-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4 text-green-400" />
-                        Copie !
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copier
-                      </>
-                    )}
-                  </motion.button>
-
-                  <motion.button
-                    onClick={handleShareTwitter}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#1DA1F2] text-white rounded-lg"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Twitter className="w-4 h-4" />
-                    Twitter
+                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                    {copied ? 'Copié !' : 'Copier'}
                   </motion.button>
                 </div>
+
+                {/* Twitter Button (Petit en bas) */}
+                <motion.button
+                  onClick={handleShareTwitter}
+                  className="mt-3 flex items-center justify-center gap-2 text-sm text-[#1DA1F2] hover:text-[#1a91da] transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Twitter className="w-3 h-3" />
+                  Tweeter
+                </motion.button>
+
               </div>
             </motion.div>
           </motion.div>
