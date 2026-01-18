@@ -1,85 +1,103 @@
 import { NextResponse } from 'next/server';
 
-// On force la route à être dynamique pour ne pas qu'elle soit mise en cache
+// On force le mode dynamique pour que le script s'exécute vraiment chaque jour
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // On laisse 60 secondes au script pour l'analyse IA
 
 export async function GET(req: Request) {
-  // 1. Sécurité : Vérifier que c'est bien Vercel qui appelle (ou toi manuellement)
-  // Sur Vercel, cette vérification est automatique si on protège la route, 
-  // mais pour tester on laisse ouvert pour l'instant.
-
   try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
+    // 1. VÉRIFICATION DES CLÉS DE SÉCURITÉ
+    const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
+    const pplxKey = process.env.PERPLEXITY_API_KEY;
+    const footballKey = process.env.API_FOOTBALL_KEY;
+    const footballHost = process.env.API_FOOTBALL_HOST || 'v3.football.api-sports.io';
 
-    // --- A. RÉCUPÉRER LES MATCHS DU JOUR (Via API Football) ---
-    const date = new Date().toISOString().split('T')[0]; // Aujourd'hui YYYY-MM-DD
-    const apiFootballKey = process.env.API_FOOTBALL_KEY;
+    if (!telegramToken || !chatId || !pplxKey || !footballKey) {
+      return NextResponse.json({ error: "Clés API manquantes dans Vercel" }, { status: 500 });
+    }
+
+    // 2. RÉCUPÉRATION DES MATCHS DU JOUR (VRAIE DATA)
+    // On prend la date d'aujourd'hui format YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     
-    // On cherche les matchs de Ligue 1 (61), Premier League (39), Liga (140), Serie A (135), LDC (2)
-    const leagues = "61-39-140-135-2"; 
+    // IDs des ligues majeures : LDC(2), PL(39), L1(61), Serie A(135), Liga(140), Bundesliga(78)
+    const leaguesIds = "2-39-61-135-140-78";
     
-    const responseFootball = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}&season=2025&ids=${leagues}`, {
+    const footResponse = await fetch(`https://v3.football.api-sports.io/fixtures?date=${today}&ids=${leaguesIds}`, {
       headers: {
-        'x-apisports-key': apiFootballKey || '',
-        'x-apisports-host': 'v3.football.api-sports.io'
+        'x-apisports-key': footballKey,
+        'x-apisports-host': footballHost
       }
     });
     
-    // Si pas de résultat précis, on prend une requête large et on filtre
-    // Pour simplifier ici, simulons qu'on a récupéré les données ou utilisons un fallback si l'API est vide (saison 2026)
-    // DANS TON CAS PRÉCIS : Comme l'année 2026 est vide en réalité, le script risque de ne rien trouver.
-    // Je vais coder une version qui "simule" pour que tu voies le résultat, 
-    // mais en prod il faudra enlever la simulation.
-    
-    // --- B. ANALYSE RAPIDE PAR IA (Simulation pour les 3 gros matchs) ---
-    // Pour ne pas exploser ton budget Perplexity, on va générer un texte stylé directement
-    // Si tu veux vraiment appeler Perplexity ici, dis-le moi, mais ça consomme 3 crédits/jour auto.
-    
-    const messageTelegram = `
-🔥 **LE TOP 3 DU JOUR - LA PASSION VIP** 🔥
-📅 *${new Date().toLocaleDateString('fr-FR')}*
+    const footData = await footResponse.json();
+    let matchesList = "Aucun match majeur aujourd'hui.";
 
-⚽ **Match 1 : Real Sociedad vs Barcelone**
-🏆 *La Liga - 21h00*
-💎 **Prono Safe :** Barça ou Nul
-💥 **Prono Fun :** Barça gagne & +2.5 Buts
-💬 *Le Barça doit impérativement gagner pour garder la tête.*
+    // On prépare une liste propre pour l'IA
+    if (footData.response && footData.response.length > 0) {
+      matchesList = footData.response.map((m: any) => 
+        `- ${m.league.name}: ${m.teams.home.name} vs ${m.teams.away.name} (Heure: ${m.fixture.date.split('T')[1].slice(0,5)})`
+      ).join('\n');
+    }
 
-➖➖➖➖➖➖➖
+    // 3. ANALYSE ET RÉDACTION PAR PERPLEXITY (LE CERVEAU)
+    const promptIA = `
+      Tu es l'Expert Principal de "La Passion VIP".
+      Voici les matchs disponibles aujourd'hui (${today}) :
+      ${matchesList}
 
-⚽ **Match 2 : PSG vs Lyon**
-🏆 *Ligue 1 - 20h45*
-💎 **Prono Safe :** Victoire PSG
-💥 **Prono Fun :** Barcola Buteur
-💬 *À domicile, Paris est intouchable cette saison.*
-
-➖➖➖➖➖➖➖
-
-⚽ **Match 3 : Arsenal vs Liverpool**
-🏆 *Premier League - 17h30*
-💎 **Prono Safe :** Les deux équipes marquent (BTTS)
-💥 **Prono Fun :** Nul à la mi-temps
-💬 *Le choc de la journée. Match très fermé attendu.*
-
-👇 **ANALYSE DÉTAILLÉE SUR LE SITE** 👇
-https://pronosport-vip.vercel.app
+      TÂCHE :
+      1. Sélectionne les 3 meilleures opportunités (si peu de matchs, analyses-en 1 ou 2).
+      2. Rédige DIRECTEMENT un message Telegram prêt à être envoyé.
+      
+      STYLE REQUIS :
+      - Utilise des émojis : 🔥, ⚽, 💎, 💰, 🚀
+      - Structure :
+        👋 *Bonjour la Team VIP !*
+        
+        ⚽ **MATCH 1 : [Equipes]**
+        🏆 *[Ligue]*
+        💎 Safe : [Prono]
+        💥 Fun : [Prono Coté]
+        📝 [Phrase d'analyse courte]
+        
+        (Répète pour les autres matchs...)
+        
+        👉 *Retrouvez l'analyse complète sur le site !*
+      
+      IMPORTANT : Ne mets aucun texte d'introduction ("Voici le message..."), donne juste le contenu du message.
     `;
 
-    // --- C. ENVOI A TELEGRAM ---
-    const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
-    const params = new URLSearchParams({
-      chat_id: chatId as string,
-      text: messageTelegram,
-      parse_mode: 'Markdown' // Important pour le gras et l'italique
+    const aiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${pplxKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "sonar-pro",
+        messages: [{ role: "user", content: promptIA }]
+      }),
     });
 
-    const telegramRes = await fetch(`${telegramUrl}?${params}`);
-    
-    return NextResponse.json({ success: true, message: "Envoyé sur Telegram" });
+    const aiJson = await aiResponse.json();
+    const finalMessage = aiJson.choices?.[0]?.message?.content || "Erreur de génération IA";
+
+    // 4. ENVOI SUR TELEGRAM
+    const telegramUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+    const params = new URLSearchParams({
+      chat_id: chatId,
+      text: finalMessage,
+      // On retire le parse_mode Markdown pour éviter les crashs si l'IA met des caractères spéciaux bizarres
+    });
+
+    await fetch(`${telegramUrl}?${params}`);
+
+    return NextResponse.json({ success: true, message: "Envoyé sur Telegram avec succès !" });
 
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Erreur Cron" }, { status: 500 });
+    console.error("Erreur Cron:", error);
+    return NextResponse.json({ error: "Erreur interne du Robot" }, { status: 500 });
   }
 }
