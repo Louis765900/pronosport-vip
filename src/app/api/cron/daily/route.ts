@@ -4,7 +4,7 @@ import { Redis } from '@upstash/redis';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Connexion automatique à la base de données Upstash via les variables d'environnement
+// Connexion automatique à Upstash via les variables d'environnement
 const redis = Redis.fromEnv();
 
 export async function GET(req: Request) {
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const siteUrl = "https://pronosport-vip-kh2g.vercel.app"; 
 
     if (!telegramToken || !chatId || !groqKey || !footballKey) {
-      return NextResponse.json({ error: "Clés manquantes (Vérifie .env)" }, { status: 500 });
+      return NextResponse.json({ error: "Clés manquantes" }, { status: 500 });
     }
 
     // 2. RÉCUPÉRATION DES MATCHS (Sur 48h pour avoir du choix)
