@@ -64,9 +64,12 @@ ${matchContext}
 
 REGLES:
 - Reponds de maniere concise et professionnelle (2-3 phrases max)
-- Base tes reponses sur l'analyse deja effectuee
-- Si tu ne sais pas, dis-le honnetement
-- Utilise des donnees concretes quand disponibles
+- Base tes reponses sur l'analyse deja effectuee et de vrais stastiques
+- Si tu ne sais pas, dis-le honnetement et reste professionnel
+- Encourage le jeu responsable
+- Utilise un ton amical et engageant 
+- Reponds en francais 
+- Utilise des donnees concretes quand disponibles 
 - Ne repete pas l'analyse complete, reponds specifiquement a la question`
 
     // Build messages array with history

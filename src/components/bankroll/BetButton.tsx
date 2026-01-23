@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CircleDollarSign, Calculator, Check, AlertTriangle } from 'lucide-react'
+import { CircleDollarSign, Calculator, Check, AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBankroll } from '@/hooks/useBankroll'
 import { Match, SafeTicket, FunTicket } from '@/types'
@@ -18,6 +18,7 @@ export function BetButton({ match, ticket, ticketType, confidence }: BetButtonPr
   const { bankroll, placeBet, getKellySuggestion } = useBankroll()
   const [showConfirm, setShowConfirm] = useState(false)
   const [customStake, setCustomStake] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const kellySuggestion = getKellySuggestion(confidence, ticket.odds_estimated)
   const suggestedStake = Math.max(1, Math.round(kellySuggestion))
@@ -25,7 +26,7 @@ export function BetButton({ match, ticket, ticketType, confidence }: BetButtonPr
   const stake = customStake ? parseFloat(customStake) : suggestedStake
   const canAfford = stake <= bankroll.balance
 
-  const handlePlaceBet = () => {
+  const handlePlaceBet = async () => {
     if (!canAfford) {
       toast.error('Bankroll insuffisante', {
         description: `Il vous faut ${stake}EUR mais vous avez ${bankroll.balance.toFixed(0)}EUR`
@@ -33,15 +34,49 @@ export function BetButton({ match, ticket, ticketType, confidence }: BetButtonPr
       return
     }
 
-    placeBet(match, ticket, ticketType, stake)
+    setIsSubmitting(true)
 
-    toast.success('Pari enregistre !', {
-      description: `${stake}EUR sur ${ticket.selection} @ ${ticket.odds_estimated}`,
-      icon: <Check className="w-4 h-4" />
-    })
+    try {
+      // 1. Sauvegarder en local
+      placeBet(match, ticket, ticketType, stake)
 
-    setShowConfirm(false)
-    setCustomStake('')
+      // 2. Synchroniser avec le serveur
+      const response = await fetch('/api/user/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: match.id,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          league: match.league,
+          date: match.date,
+          ticketType,
+          market: ticket.market,
+          selection: ticket.selection,
+          odds: ticket.odds_estimated,
+          stake,
+          potentialWin: stake * ticket.odds_estimated
+        })
+      })
+
+      if (!response.ok) {
+        console.warn('[BetButton] Erreur sync serveur, pari sauvegarde localement')
+      }
+
+      toast.success('Pari enregistre !', {
+        description: `${stake}EUR sur ${ticket.selection} @ ${ticket.odds_estimated}`,
+        icon: <Check className="w-4 h-4" />
+      })
+    } catch (error) {
+      console.error('[BetButton] Erreur:', error)
+      toast.success('Pari enregistre localement', {
+        description: `${stake}EUR sur ${ticket.selection}`
+      })
+    } finally {
+      setIsSubmitting(false)
+      setShowConfirm(false)
+      setCustomStake('')
+    }
   }
 
   return (
@@ -147,18 +182,25 @@ export function BetButton({ match, ticket, ticketType, confidence }: BetButtonPr
                 </button>
                 <motion.button
                   onClick={handlePlaceBet}
-                  disabled={!canAfford}
+                  disabled={!canAfford || isSubmitting}
                   className={`
-                    flex-1 py-2 rounded-lg font-semibold transition-colors
-                    ${canAfford
+                    flex-1 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2
+                    ${canAfford && !isSubmitting
                       ? 'bg-neon-green text-dark-900 hover:bg-neon-green/90'
                       : 'bg-dark-600 text-white/30 cursor-not-allowed'
                     }
                   `}
-                  whileHover={canAfford ? { scale: 1.02 } : {}}
-                  whileTap={canAfford ? { scale: 0.98 } : {}}
+                  whileHover={canAfford && !isSubmitting ? { scale: 1.02 } : {}}
+                  whileTap={canAfford && !isSubmitting ? { scale: 0.98 } : {}}
                 >
-                  Confirmer
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Envoi...
+                    </>
+                  ) : (
+                    'Confirmer'
+                  )}
                 </motion.button>
               </div>
             </motion.div>

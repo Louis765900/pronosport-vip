@@ -159,7 +159,7 @@ ${match.stade || 'Stade non spécifié'}
 ---
 
 INSTRUCTIONS :
-1. Recherche les dernières infos sur ce match (absents, forme, stats)
+1. Recherche les dernières vrais infos sur ce match (absents, forme, stats)
 2. Calcule les probabilités réelles
 3. Génère les tickets SAFE et FUN selon la méthodologie La Passion VIP
 4. Réponds UNIQUEMENT avec le JSON, sans aucun texte autour`

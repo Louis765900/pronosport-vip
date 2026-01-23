@@ -143,6 +143,34 @@ export interface APIPronosticResponse {
 }
 
 // ==========================================
+// TYPES NOUVELLE ARCHITECTURE ADMIN
+// ==========================================
+
+export interface Staking {
+    percentage: number;
+    label: 'Prudent' | 'Standard' | 'Confiance';
+}
+
+export interface Pronostic {
+    fixture_id: number;
+    teams: string;
+    league: string;
+    market: string;
+    prediction: string;
+    odds: number;
+    staking: Staking;
+    analysis: string;
+    is_vip?: boolean;
+}
+
+export interface DailyAnalysis {
+    global_analysis: string;
+    vip_match: Pronostic | null;
+    free_matches: Pronostic[];
+}
+
+
+// ==========================================
 // COULEURS DES LIGUES POUR PLACEHOLDERS
 // ==========================================
 
@@ -249,4 +277,58 @@ export interface ChatResponse {
   success: boolean
   message?: string
   error?: string
+}
+
+// ==========================================
+// TYPES PUSH NOTIFICATIONS
+// ==========================================
+
+export interface PushSubscriptionKeys {
+  p256dh: string
+  auth: string
+}
+
+export interface PushSubscriptionData {
+  endpoint: string
+  keys: PushSubscriptionKeys
+}
+
+export interface UserPushSubscription {
+  email: string
+  subscription: PushSubscriptionData
+  createdAt: string
+  isActive: boolean
+}
+
+// ==========================================
+// TYPES PARIS UTILISATEUR (SERVER SYNC)
+// ==========================================
+
+export interface ServerBet extends Bet {
+  userEmail: string
+  fixtureId?: number
+  verificationAttempts: number
+  lastVerificationAt?: string
+  perplexityVerified: boolean
+}
+
+export interface UserBetsData {
+  email: string
+  bets: ServerBet[]
+  bankroll: number
+  lastSyncedAt: string
+}
+
+// ==========================================
+// TYPES NOTIFICATION PAYLOAD
+// ==========================================
+
+export interface BetNotificationPayload {
+  type: 'bet_result'
+  betId: string
+  status: 'won' | 'lost'
+  match: string
+  market: string
+  profit?: number
+  loss?: number
 }

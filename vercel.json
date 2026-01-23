@@ -5,8 +5,12 @@
       "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/cron/check-results",
+      "path": "/api/cron/daily/check-results",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/generate-combines",
+      "schedule": "0 10 * * *"
     }
   ]
 }
