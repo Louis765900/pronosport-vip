@@ -13,7 +13,7 @@ const testimonials = [
   },
   {
     name: 'Sophie L.',
-    role: 'Membre VIP',
+    role: 'Membre depuis 4 mois',
     content: 'J\'ai enfin trouvé une plateforme transparente qui ne cherche pas à me vendre des abonnements. Le système de bankroll m\'a beaucoup aidée.',
     rating: 5,
   },
@@ -31,10 +31,7 @@ function StarRating({ rating }: { rating: number }) {
       {[...Array(5)].map((_, i) => (
         <Star
           key={i}
-          className={cn(
-            'w-4 h-4',
-            i < rating ? 'text-amber-400 fill-amber-400' : 'text-slate-600'
-          )}
+          className={cn('w-3.5 h-3.5', i < rating ? 'text-amber-400 fill-amber-400' : 'text-white/10')}
         />
       ))}
     </div>
@@ -43,53 +40,56 @@ function StarRating({ rating }: { rating: number }) {
 
 export function TestimonialsSection() {
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Ce que disent nos <span className="text-amber-400">membres</span>
-          </h2>
-          <p className="text-slate-400 max-w-2xl mx-auto">
-            Rejoignez des centaines de parieurs satisfaits qui utilisent nos analyses.
-          </p>
+    <section className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-16">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-5"
+          >
+            Ce que disent nos membres
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-4xl sm:text-5xl font-bold text-white tracking-tight"
+          >
+            Ils parient plus intelligemment.
+          </motion.h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-5">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className={cn(
-                'relative p-6 rounded-2xl',
-                'bg-slate-800/50 border border-slate-700/50',
-                'hover:border-amber-500/20',
-                'transition-all duration-300'
-              )}
+              whileHover={{ y: -4 }}
+              className="glass-card-premium rounded-2xl p-6 relative transition-all duration-300"
             >
-              {/* Quote icon */}
-              <Quote className="absolute top-6 right-6 w-8 h-8 text-slate-700" />
+              <Quote className="absolute top-5 right-5 w-7 h-7 text-white/[0.04]" />
 
-              {/* Rating */}
               <div className="mb-4">
                 <StarRating rating={testimonial.rating} />
               </div>
 
-              {/* Content */}
-              <p className="text-slate-300 mb-6 relative z-10">
+              <p className="text-white/65 text-sm leading-relaxed mb-6">
                 &ldquo;{testimonial.content}&rdquo;
               </p>
 
-              {/* Author */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-black font-bold">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
                   {testimonial.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-medium text-white">{testimonial.name}</p>
-                  <p className="text-sm text-slate-500">{testimonial.role}</p>
+                  <p className="font-semibold text-white text-sm">{testimonial.name}</p>
+                  <p className="text-xs text-white/35">{testimonial.role}</p>
                 </div>
               </div>
             </motion.div>

@@ -1,111 +1,111 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, Eye, Zap, Brain, Database, TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils/cn';
+import { Brain, Target, TrendingUp } from 'lucide-react';
 
 const steps = [
   {
-    icon: Database,
-    title: 'Collecte des Données',
-    description: 'Notre IA récupère en temps réel les statistiques des équipes, les formes récentes, les confrontations directes et les actualités.',
-    color: 'blue',
-  },
-  {
+    number: '01',
     icon: Brain,
-    title: 'Analyse IA',
-    description: 'Les données sont analysées par nos algorithmes de machine learning pour identifier les patterns et tendances.',
-    color: 'purple',
+    title: "L'IA analyse",
+    description:
+      "Notre IA récupère en temps réel les stats, formes récentes, confrontations, blessures et cotes de marché pour chaque match.",
+    accent: '#0A84FF',
   },
   {
-    icon: Eye,
-    title: 'Contextualisation',
-    description: 'Nous prenons en compte les facteurs humains : blessures, suspensions, météo, enjeux du match.',
-    color: 'amber',
+    number: '02',
+    icon: Target,
+    title: 'Tu choisis',
+    description:
+      "Accède aux analyses détaillées avec taux de confiance, Expected Value et raisonnement complet. Tu gardes le contrôle.",
+    accent: '#F59E0B',
   },
   {
+    number: '03',
     icon: TrendingUp,
-    title: 'Value Betting',
-    description: 'Identification des cotes surcotées avec calcul de l\'Expected Value (EV) pour maximiser vos gains.',
-    color: 'green',
+    title: 'Tu gagnes',
+    description:
+      "Suis ta bankroll en temps réel, analyse ton ROI et améliore ta stratégie avec notre historique transparent.",
+    accent: '#30D158',
   },
 ];
 
 export function HowItWorksSection() {
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+    <section className="py-32 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-20">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-4"
+            className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-5"
           >
-            <Zap className="w-4 h-4" />
-            Notre Méthodologie
-          </motion.div>
-          
+            Comment ça marche
+          </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-3xl sm:text-4xl font-bold text-white mb-4"
+            className="text-4xl sm:text-5xl font-bold text-white tracking-tight"
           >
-            Comment fonctionne notre <span className="text-blue-400">IA</span> ?
+            Simple. Efficace. Transparent.
           </motion.h2>
-          
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-slate-400 max-w-2xl mx-auto"
-          >
-            Une approche rigoureuse basée sur les données, pas sur l&apos;intuition.
-          </motion.p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            return (
-              <motion.div
-                key={step.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className={cn(
-                  'relative p-6 rounded-2xl',
-                  'bg-slate-800/50 border border-slate-700/50',
-                  'hover:border-blue-500/30',
-                  'transition-all duration-300 group'
-                )}
+        {/* Steps */}
+        <div className="grid md:grid-cols-3 gap-12 relative">
+          {/* Connecting line — desktop only */}
+          <div
+            className="absolute top-9 hidden md:block"
+            style={{
+              left: 'calc(16.66% + 2.5rem)',
+              right: 'calc(16.66% + 2.5rem)',
+              height: '1px',
+              background: 'linear-gradient(to right, rgba(10,132,255,0.3), rgba(245,158,11,0.2), rgba(48,209,88,0.3))',
+            }}
+          />
+
+          {steps.map((step, i) => (
+            <motion.div
+              key={step.number}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ delay: i * 0.15, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="relative text-center"
+            >
+              {/* Icon circle */}
+              <div
+                className="relative w-18 h-18 mx-auto mb-6 flex items-center justify-center"
+                style={{ width: '4.5rem', height: '4.5rem' }}
               >
-                {/* Step number */}
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                  {index + 1}
-                </div>
-
-                {/* Icon */}
+                {/* Glow bg */}
                 <div
-                  className={cn(
-                    'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
-                    'bg-blue-500/10 group-hover:bg-blue-500/20',
-                    'transition-colors'
-                  )}
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: `radial-gradient(circle, ${step.accent}18 0%, transparent 70%)`,
+                    border: `1px solid ${step.accent}30`,
+                  }}
+                />
+                <step.icon className="w-7 h-7 relative z-10" style={{ color: step.accent }} />
+                {/* Step number badge */}
+                <span
+                  className="absolute -top-2 -right-2 text-[10px] font-bold text-white/25"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
-                  <Icon className="w-7 h-7 text-blue-400" />
-                </div>
+                  {step.number}
+                </span>
+              </div>
 
-                {/* Content */}
-                <h3 className="font-semibold text-white mb-2">{step.title}</h3>
-                <p className="text-sm text-slate-400">{step.description}</p>
-              </motion.div>
-            );
-          })}
+              <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
+              <p className="text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
+                {step.description}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

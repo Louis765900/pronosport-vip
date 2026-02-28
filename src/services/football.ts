@@ -223,6 +223,7 @@ async function getMatchesFromFootballData(dateStr: string, isFutureDate: boolean
 
         return {
           id: m.id.toString(),
+          sport: 'football' as const,
           homeTeam: m.homeTeam.name,
           awayTeam: m.awayTeam.name,
           homeTeamLogo: m.homeTeam.crest,
@@ -300,6 +301,7 @@ async function getMatchesFromAPIFootball(dateStr: string, isFutureDate: boolean)
       .filter((fixture) => validStatuses.includes(fixture.fixture.status.short))
       .map((fixture) => ({
         id: fixture.fixture.id.toString(),
+        sport: 'football' as const,
         homeTeam: fixture.teams.home.name,
         awayTeam: fixture.teams.away.name,
         homeTeamLogo: fixture.teams.home.logo,

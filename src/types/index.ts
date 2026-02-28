@@ -2,6 +2,9 @@
 // TYPES APPLICATION - PERPLEXITY ONLY
 // ==========================================
 
+export type { SportId } from '@/lib/config/sports'
+import type { SportId } from '@/lib/config/sports'
+
 export type DateFilter = 'today' | 'tomorrow' | 'day-after'
 
 // Match simplifié retourné par Perplexity
@@ -17,6 +20,7 @@ export interface PerplexityMatch {
 // Match enrichi pour l'affichage
 export interface Match {
   id: string
+  sport: SportId // Sport associé au match
   fixtureId?: number | string // ID du match pour l'API Football
   league: string
   homeTeam: string
@@ -65,7 +69,7 @@ export interface KeyStat {
 export interface MissingPlayer {
   team: string
   player: string
-  importance: 'High' | 'Medium' | 'Low'
+  importance: 'High' | 'Medium' | 'Low' | 'Élevée' | 'Moyenne' | 'Faible'
 }
 
 // Stats pour le Radar Chart (0-100)
@@ -140,10 +144,19 @@ export interface VIPTickets {
   fun: FunTicket
 }
 
+export interface AdditionalMarket {
+  market: string
+  selection: string
+  odds_estimated: number
+  confidence: number
+  reason: string
+}
+
 export interface PronosticResponse {
   analysis: PronosticAnalysis
   predictions: PronosticPredictions
   vip_tickets: VIPTickets
+  additional_markets?: AdditionalMarket[]
 }
 
 export interface APIPronosticResponse {

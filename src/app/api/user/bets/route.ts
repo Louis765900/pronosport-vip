@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { Redis } from '@upstash/redis'
 import { ServerBet, Bet } from '@/types'
+import { getRedis } from '@/lib/redis'
 
 export const dynamic = 'force-dynamic'
-
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_KV_REST_API_URL
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN
 
 /**
  * GET - Recuperer les paris de l'utilisateur
@@ -21,11 +18,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    if (!redisUrl || !redisToken) {
-      return NextResponse.json({ error: 'Configuration Redis manquante' }, { status: 500 })
-    }
-
-    const redis = new Redis({ url: redisUrl, token: redisToken })
+    const redis = getRedis()
 
     // Recuperer les paris
     const betsRaw = await redis.get(`user:${userEmail}:bets`)
@@ -33,9 +26,13 @@ export async function GET(req: NextRequest) {
       ? (typeof betsRaw === 'string' ? JSON.parse(betsRaw) : betsRaw as ServerBet[])
       : []
 
-    // Recuperer la bankroll
-    const bankrollRaw = await redis.get(`user:${userEmail}:bankroll`)
+    // Recuperer la bankroll + bankroll initiale
+    const [bankrollRaw, initialBankrollRaw] = await Promise.all([
+      redis.get(`user:${userEmail}:bankroll`),
+      redis.get(`user:${userEmail}:bankroll:initial`),
+    ])
     const bankroll = bankrollRaw ? parseFloat(String(bankrollRaw)) : 100
+    const initialBankroll = initialBankrollRaw ? parseFloat(String(initialBankrollRaw)) : 100
 
     // Calculer les stats
     const totalBets = bets.length

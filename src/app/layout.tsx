@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import './globals.css'
-import { Navbar } from '@/components/Navbar'
+import { Suspense } from 'react'
+import { NavbarWrapper } from '@/components/NavbarWrapper'
 import { LegalFooter } from '@/components/LegalFooter'
 import { AgeVerificationPopup } from '@/components/AgeVerificationPopup'
 import { BankrollSetupPopup } from '@/components/BankrollSetupPopup'
@@ -122,7 +123,9 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="font-sans antialiased text-white bg-gray-950 overscroll-none">
-        <Navbar isLoggedIn={isLoggedIn} isAdmin={isAdmin} userRole={userRole} />
+        <Suspense fallback={null}>
+          <NavbarWrapper isLoggedIn={isLoggedIn} isAdmin={isAdmin} userRole={userRole} />
+        </Suspense>
         <main className="min-h-screen pb-safe">
           {children}
         </main>

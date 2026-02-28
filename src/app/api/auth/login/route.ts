@@ -1,14 +1,13 @@
 // src/app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
+import { getRedis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
-// Fallback pour les variables Redis (compatibilité avec différents noms)
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_KV_REST_API_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_SECONDS = 15 * 60; // 15 minutes
 
 // Génère un token de session unique
 function generateToken(prefix: string): string {
@@ -26,6 +25,15 @@ const getCookieOptions = (httpOnly: boolean = true) => ({
   path: '/',
 });
 
+function buildSuccessResponse(role: string, email: string, redirect: string) {
+  const sessionToken = generateToken(role);
+  const response = NextResponse.json({ success: true, role, email, redirect });
+  response.cookies.set('vip_session', sessionToken, getCookieOptions(true));
+  response.cookies.set('user_role', role, getCookieOptions(true));
+  response.cookies.set('user_email', email, getCookieOptions(true));
+  return response;
+}
+
 /**
  * POST - Connexion
  */
@@ -34,7 +42,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { email, password } = body;
 
-    // Validation basique
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email et mot de passe requis' },
@@ -42,119 +49,79 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const adminSecret = process.env.ADMIN_SECRET;
     const normalizedEmail = email.toLowerCase().trim();
+    const adminSecret = process.env.ADMIN_SECRET;
 
     // ═══════════════════════════════════════════
-    // CAS 1 : ADMIN (Master Password)
+    // CAS 1 : ADMIN (Master Password) — pas de rate limit
     // ═══════════════════════════════════════════
     if (adminSecret && password === adminSecret) {
-      const sessionToken = generateToken('admin');
-
-      const response = NextResponse.json({
-        success: true,
-        role: 'admin',
-        email: normalizedEmail,
-        redirect: '/admin',
-      });
-
-      response.cookies.set('vip_session', sessionToken, getCookieOptions(true));
-      response.cookies.set('user_role', 'admin', getCookieOptions(true));
-      response.cookies.set('user_email', normalizedEmail, getCookieOptions(true));
-
       console.log(`[AUTH] Admin login: ${normalizedEmail}`);
-      return response;
+      return buildSuccessResponse('admin', normalizedEmail, '/admin');
     }
 
     // ═══════════════════════════════════════════
-    // CAS 2 : UTILISATEURS REDIS (VIP invités)
+    // RATE LIMITING : max 5 tentatives / 15 min
     // ═══════════════════════════════════════════
-    if (redisUrl && redisToken) {
+    let redis: ReturnType<typeof getRedis> | null = null;
+    try {
+      redis = getRedis();
+      const attemptKey = `login_attempts:${normalizedEmail}`;
+      const attempts = await redis.incr(attemptKey);
+      if (attempts === 1) {
+        await redis.expire(attemptKey, LOGIN_WINDOW_SECONDS);
+      }
+      if (attempts > LOGIN_MAX_ATTEMPTS) {
+        console.warn(`[AUTH] Rate limit atteint pour ${normalizedEmail} (${attempts} tentatives)`);
+        return NextResponse.json(
+          { error: `Trop de tentatives. Réessayez dans 15 minutes.` },
+          { status: 429 }
+        );
+      }
+    } catch (redisError) {
+      console.error('[AUTH] Erreur rate limit Redis:', redisError);
+      // Si Redis échoue, on continue sans rate limit pour ne pas bloquer les utilisateurs légitimes
+    }
+
+    // ═══════════════════════════════════════════
+    // CAS 2 : UTILISATEURS REDIS (comptes réels)
+    // ═══════════════════════════════════════════
+    if (redis) {
       try {
-        const redis = new Redis({
-          url: redisUrl,
-          token: redisToken,
-        });
-
         const userRaw = await redis.get(`user:${normalizedEmail}`);
-
         if (userRaw) {
-          // Upstash peut renvoyer un objet ou une string JSON
-          const user = typeof userRaw === 'string' ? JSON.parse(userRaw) : userRaw;
-
-          // Comparaison sécurisée avec bcrypt
+          const user = typeof userRaw === 'string' ? JSON.parse(userRaw) : userRaw as Record<string, string>;
           const isPasswordValid = await bcrypt.compare(password, user.password);
-
           if (isPasswordValid) {
-            const sessionToken = generateToken('vip');
-
-            const response = NextResponse.json({
-              success: true,
-              role: user.role || 'vip',
-              email: normalizedEmail,
-              redirect: '/',
-            });
-
-            response.cookies.set('vip_session', sessionToken, getCookieOptions(true));
-            response.cookies.set('user_role', user.role || 'vip', getCookieOptions(true));
-            response.cookies.set('user_email', normalizedEmail, getCookieOptions(true));
-
-            console.log(`[AUTH] Redis VIP login: ${normalizedEmail}`);
-            return response;
+            // Connexion réussie : réinitialiser le compteur
+            await redis.del(`login_attempts:${normalizedEmail}`);
+            console.log(`[AUTH] Redis login: ${normalizedEmail}`);
+            return buildSuccessResponse(user.role || 'vip', normalizedEmail, '/');
           }
         }
       } catch (redisError) {
-        console.error('[AUTH] Erreur Redis:', redisError);
-        // Continue vers les fallbacks hardcodés
+        console.error('[AUTH] Erreur Redis lecture user:', redisError);
       }
     }
 
     // ═══════════════════════════════════════════
-    // CAS 3 : MEMBRE VIP (Hardcodé - Fallback)
+    // CAS 3 & 4 : Comptes démo (variables d'env)
     // ═══════════════════════════════════════════
-    if (normalizedEmail === 'membre@pronosport.vip' && password === 'membre123') {
-      const sessionToken = generateToken('vip');
-
-      const response = NextResponse.json({
-        success: true,
-        role: 'vip',
-        email: normalizedEmail,
-        redirect: '/',
-      });
-
-      response.cookies.set('vip_session', sessionToken, getCookieOptions(true));
-      response.cookies.set('user_role', 'vip', getCookieOptions(true));
-      response.cookies.set('user_email', normalizedEmail, getCookieOptions(true));
-
-      console.log(`[AUTH] VIP login (hardcoded): ${normalizedEmail}`);
-      return response;
-    }
-
-    // ═══════════════════════════════════════════
-    // CAS 4 : UTILISATEUR FREE (Demo - Fallback)
-    // ═══════════════════════════════════════════
-    if (normalizedEmail === 'free@pronosport.vip' && password === 'free123') {
-      const sessionToken = generateToken('free');
-
-      const response = NextResponse.json({
-        success: true,
-        role: 'free',
-        email: normalizedEmail,
-        redirect: '/',
-      });
-
-      response.cookies.set('vip_session', sessionToken, getCookieOptions(true));
-      response.cookies.set('user_role', 'free', getCookieOptions(true));
-      response.cookies.set('user_email', normalizedEmail, getCookieOptions(true));
-
-      console.log(`[AUTH] Free login: ${normalizedEmail}`);
-      return response;
+    if (process.env.ENABLE_DEMO_ACCOUNTS === 'true') {
+      if (normalizedEmail === 'membre@pronosport.vip' && password === 'membre123') {
+        console.log(`[AUTH] Demo VIP login`);
+        return buildSuccessResponse('vip', normalizedEmail, '/');
+      }
+      if (normalizedEmail === 'free@pronosport.vip' && password === 'free123') {
+        console.log(`[AUTH] Demo Free login`);
+        return buildSuccessResponse('free', normalizedEmail, '/');
+      }
     }
 
     // ═══════════════════════════════════════════
     // ÉCHEC : Identifiants incorrects
     // ═══════════════════════════════════════════
-    console.log(`[AUTH] Failed login attempt: ${normalizedEmail}`);
+    console.log(`[AUTH] Échec connexion: ${normalizedEmail}`);
     return NextResponse.json(
       { error: 'Identifiants incorrects' },
       { status: 401 }
@@ -163,10 +130,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     console.error('[AUTH] Error:', errorMessage);
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
@@ -183,12 +147,8 @@ export async function GET() {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    return NextResponse.json({
-      authenticated: true,
-      role: role || 'unknown',
-    });
-
-  } catch (error) {
+    return NextResponse.json({ authenticated: true, role: role || 'unknown' });
+  } catch {
     return NextResponse.json({ authenticated: false }, { status: 500 });
   }
 }
@@ -198,23 +158,13 @@ export async function GET() {
  */
 export async function DELETE() {
   try {
-    const response = NextResponse.json({
-      success: true,
-      message: 'Déconnexion réussie',
-    });
-
-    // Supprimer les cookies en les expirant
+    const response = NextResponse.json({ success: true, message: 'Déconnexion réussie' });
     response.cookies.set('vip_session', '', { maxAge: 0, path: '/' });
     response.cookies.set('user_role', '', { maxAge: 0, path: '/' });
     response.cookies.set('user_email', '', { maxAge: 0, path: '/' });
-
     console.log('[AUTH] User logged out');
     return response;
-
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la déconnexion' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'Erreur lors de la déconnexion' }, { status: 500 });
   }
 }

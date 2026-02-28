@@ -9,6 +9,9 @@ export { default as VipConfidenceCard } from './VipConfidenceCard'
 export { DashboardClient } from './DashboardClient'
 export { MatchCardSkeleton, PronosticSkeleton, DashboardSkeleton } from './LoadingSkeleton'
 
+// Sport Context Banner
+export { SportContextBanner } from './SportContextBanner'
+
 // Legal & Compliance
 export { LegalFooter } from './LegalFooter'
 export { DisclaimerBanner } from './DisclaimerBanner'

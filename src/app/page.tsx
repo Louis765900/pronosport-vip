@@ -2,16 +2,13 @@ import { Metadata } from 'next';
 import { generateMetadata } from '@/lib/config/seo';
 import { OrganizationSchema, WebsiteSchema } from '@/components/seo/StructuredData';
 import { HeroSection } from '@/components/marketing/Hero';
-import { HeroImages } from '@/components/marketing/HeroImages';
-import { FeatureImages } from '@/components/marketing/FeatureImages';
 import { StatsOverview } from '@/components/marketing/StatsOverview';
 import { TrustSection } from '@/components/marketing/TrustBadges';
 import { TestimonialsSection } from '@/components/marketing/Testimonials';
-import { NewsletterSection } from '@/components/marketing/Newsletter';
-import { DisclaimerBanner } from '@/components/DisclaimerBanner';
 import { HowItWorksSection } from '@/components/marketing/HowItWorks';
 import { RecentResults } from '@/components/marketing/RecentResults';
 import { FinalCTA } from '@/components/marketing/FinalCTA';
+import { IntroStatement } from '@/components/marketing/IntroStatement';
 
 export const metadata: Metadata = generateMetadata({
   title: 'Pronostics Football IA Gratuits',
@@ -25,44 +22,35 @@ export default function HomePage() {
     <>
       <OrganizationSchema />
       <WebsiteSchema />
-      
-      <div className="min-h-screen bg-slate-950">
+
+      <div className="min-h-screen bg-black overflow-x-hidden">
         {/* 1. HERO */}
         <HeroSection />
-        
-        {/* HERO IMAGES - Interface preview */}
-        <HeroImages />
-        
-        {/* Disclaimer */}
-        <DisclaimerBanner />
-        
-        {/* 2. STATS GLOBALES */}
-        <StatsOverview 
+
+        {/* 2. INTRO STATEMENT */}
+        <IntroStatement />
+
+        {/* 3. STATS GLOBALES */}
+        <StatsOverview
           stats={{
             winRate: 57.9,
             roi: 12.4,
             totalAnalyses: 250,
           }}
         />
-        
-        {/* FEATURE IMAGES */}
-        <FeatureImages />
-        
-        {/* 3. COMMENT FONCTIONNE L'IA */}
-        <HowItWorksSection />
-        
-        {/* 4. DERNIERS RÉSULTATS */}
-        <RecentResults />
-        
-        {/* 5. POURQUOI NOUS FAIRE CONFIANCE */}
+
+        {/* 4. FEATURES ALTERNÉES */}
         <TrustSection />
-        
-        {/* 6. TÉMOIGNAGES */}
+
+        {/* 5. COMMENT ÇA MARCHE */}
+        <HowItWorksSection />
+
+        {/* 6. DERNIERS RÉSULTATS */}
+        <RecentResults />
+
+        {/* 7. TÉMOIGNAGES */}
         <TestimonialsSection />
-        
-        {/* 7. NEWSLETTER */}
-        <NewsletterSection />
-        
+
         {/* 8. CTA FINAL */}
         <FinalCTA />
       </div>

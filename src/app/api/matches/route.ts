@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic';
 import { Match, LeagueGroup, DateFilter } from '@/types'
-import { getMatchesByDate, getPriorityMatches } from '@/services/football'
+import { SportId, DEFAULT_SPORT } from '@/lib/config/sports'
+import { getServiceForSport } from '@/services/sports'
 import { Redis } from '@upstash/redis'
 
 const redis = new Redis({
@@ -99,12 +100,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const dateFilter = (searchParams.get('date') || 'today') as DateFilter
+    const sport = (searchParams.get('sport') || DEFAULT_SPORT) as SportId
     const priorityOnly = searchParams.get('priority') === 'true'
 
     const shortDate = formatDateShort(dateFilter)
 
     // ── Cache Redis (5 min today / 30 min future) ──────────────
-    const cacheKey = `matches:${dateFilter}${priorityOnly ? ':priority' : ''}`
+    const cacheKey = `matches:${sport}:${dateFilter}${priorityOnly ? ':priority' : ''}`
     const cacheTTL = dateFilter === 'today' ? 300 : 1800
     try {
       const cached = await redis.get<{ leagues: LeagueGroup[]; total: number }>(cacheKey)
@@ -115,7 +117,7 @@ export async function GET(request: NextRequest) {
     } catch { /* ignore cache errors */ }
 
     console.log('='.repeat(60))
-    console.log('⚽ MATCHES API - API-Football Request')
+    console.log(`🏅 MATCHES API - Sport: ${sport}`)
     console.log('='.repeat(60))
     console.log(`📅 Filter: ${dateFilter}`)
     console.log(`🎯 Priority only: ${priorityOnly}`)
@@ -128,10 +130,13 @@ export async function GET(request: NextRequest) {
       targetDate.setDate(targetDate.getDate() + 2)
     }
 
-    // Recuperer les matchs depuis API-Football
+    // Récupérer le service correspondant au sport demandé
+    const service = await getServiceForSport(sport)
+
+    // Récupérer les matchs
     const matches = priorityOnly
-      ? await getPriorityMatches()
-      : await getMatchesByDate(targetDate)
+      ? await service.getPriorityMatches()
+      : await service.getMatchesByDate(targetDate)
 
     if (matches.length === 0) {
       console.log('⚠️ Aucun match trouvé')

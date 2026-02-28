@@ -1,30 +1,15 @@
 // src/app/api/auth/register-invite/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { getRedis } from '@/lib/redis';
+import { isValidEmail, isStrongPassword } from '@/lib/utils/validators';
 
 export const dynamic = 'force-dynamic';
 
-// Fallback pour les variables Redis (compatibilité avec différents noms)
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_KV_REST_API_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
-
 export async function POST(request: NextRequest) {
   try {
-    // Vérification des variables d'environnement Redis
-    if (!redisUrl || !redisToken) {
-      console.error('[REGISTER] Variables Redis manquantes');
-      return NextResponse.json(
-        { error: 'Configuration serveur incorrecte' },
-        { status: 500 }
-      );
-    }
-
-    const redis = new Redis({
-      url: redisUrl,
-      token: redisToken,
-    });
+    const redis = getRedis();
 
     const { email, password, token } = await request.json();
 
@@ -36,14 +21,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password.length < 8) {
+    // 2. Validation format email
+    if (!isValidEmail(email)) {
       return NextResponse.json(
-        { error: 'Le mot de passe doit contenir au moins 8 caractères' },
+        { error: 'Adresse email invalide' },
         { status: 400 }
       );
     }
 
-    // 2. Si token présent, vérifier l'invitation (sinon inscription libre)
+    // 3. Validation force mot de passe
+    const { valid: passwordValid, errors: passwordErrors } = isStrongPassword(password);
+    if (!passwordValid) {
+      return NextResponse.json(
+        { error: passwordErrors.join('. ') },
+        { status: 400 }
+      );
+    }
+
+    // 4. Si token présent, vérifier l'invitation (sinon inscription libre)
     if (token) {
       const inviteKey = `invite:${token}`;
       const inviteData = await redis.get(inviteKey);
@@ -59,7 +54,7 @@ export async function POST(request: NextRequest) {
       await redis.del(inviteKey);
     }
 
-    // 3. Vérification si l'email existe déjà
+    // 5. Vérification si l'email existe déjà
     const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await redis.get(`user:${normalizedEmail}`);
 
@@ -70,10 +65,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Hashage sécurisé du mot de passe
+    // 6. Hashage sécurisé du mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5. Création de l'utilisateur dans Redis
+    // 7. Création de l'utilisateur dans Redis
     const userId = uuidv4();
     const userData = {
       id: userId,
@@ -86,16 +81,16 @@ export async function POST(request: NextRequest) {
 
     await redis.set(`user:${normalizedEmail}`, userData);
 
-    // 6. Initialiser la bankroll à 100
+    // 8. Initialiser la bankroll à 100
     await redis.set(`user:${normalizedEmail}:bankroll`, 100);
     await redis.set(`user:${normalizedEmail}:bankroll:initial`, 100);
 
-    // 7. Création de la session (7 jours)
+    // 9. Création de la session (7 jours)
     const sessionId = uuidv4();
 
     console.log(`[REGISTER] Nouvel utilisateur créé: ${normalizedEmail} (${token ? 'invitation' : 'inscription libre'})`);
 
-    // 8. Préparation de la réponse avec cookies
+    // 10. Préparation de la réponse avec cookies
     const response = NextResponse.json({
       success: true,
       message: 'Compte créé avec succès',
@@ -106,7 +101,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 9. Configuration des cookies de session
+    // 11. Configuration des cookies de session
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

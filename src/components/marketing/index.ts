@@ -8,3 +8,4 @@ export * from './FeatureImages';
 export * from './HowItWorks';
 export * from './RecentResults';
 export * from './FinalCTA';
+export * from './IntroStatement';

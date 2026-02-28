@@ -50,37 +50,36 @@ const recentResults = [
 
 export function RecentResults() {
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-900/30">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+    <section className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06] bg-white/[0.015]">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-14">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium mb-4"
+            className="text-xs font-semibold uppercase tracking-widest text-[#30D158] mb-5"
           >
-            <Trophy className="w-4 h-4" />
-            Derniers Résultats
-          </motion.div>
-          
+            Track Record
+          </motion.p>
+
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-3xl sm:text-4xl font-bold text-white mb-4"
+            className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-4"
           >
-            Notre <span className="text-green-400">Track Record</span> récent
+            Transparence totale.
           </motion.h2>
-          
+
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="text-slate-400 max-w-xl mx-auto"
+            className="text-white/45 max-w-xl mx-auto"
           >
-            Transparence totale : voici nos dernières analyses avec leurs résultats.
+            Voici nos dernières analyses avec leurs résultats réels.
           </motion.p>
         </div>
 
@@ -91,17 +90,12 @@ export function RecentResults() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className={cn(
-                'p-5 rounded-xl',
-                'bg-slate-800/50 border border-slate-700/50',
-                'hover:border-slate-600/50',
-                'transition-all duration-300'
-              )}
+              transition={{ delay: index * 0.08 }}
+              className="ios-widget p-5 rounded-xl transition-all duration-300 hover:scale-[1.02]"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500">{result.date}</span>
+                <span className="text-xs text-white/35">{result.date}</span>
                 <div
                   className={cn(
                     'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold',
@@ -121,31 +115,31 @@ export function RecentResults() {
 
               {/* Match */}
               <h3 className="font-semibold text-white mb-1">{result.match}</h3>
-              <p className="text-xs text-slate-500 mb-3">{result.competition}</p>
+              <p className="text-xs text-white/35 mb-3">{result.competition}</p>
 
               {/* Pick */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">Pick</span>
+                  <span className="text-sm text-white/40">Pick</span>
                   <span className="text-sm text-white">{result.pick}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">Cote</span>
+                  <span className="text-sm text-white/40">Cote</span>
                   <span className="text-sm font-bold text-amber-400">@{result.odds}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">Score</span>
+                  <span className="text-sm text-white/40">Score</span>
                   <span className="text-sm text-white">{result.score}</span>
                 </div>
               </div>
 
               {/* Confidence bar */}
-              <div className="mt-4 pt-3 border-t border-slate-700/50">
+              <div className="mt-4 pt-3 border-t border-white/[0.06]">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-slate-500">Confiance IA</span>
-                  <span className="text-slate-300">{result.confidence}%</span>
+                  <span className="text-white/35">Confiance IA</span>
+                  <span className="text-white/60">{result.confidence}%</span>
                 </div>
-                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                   <div
                     className={cn(
                       'h-full rounded-full transition-all',
@@ -164,17 +158,12 @@ export function RecentResults() {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.4 }}
           className="text-center mt-10"
         >
           <Link
             href="/pronostics"
-            className={cn(
-              'inline-flex items-center gap-2 px-6 py-3 rounded-xl',
-              'bg-slate-800 text-white font-medium',
-              'border border-slate-700 hover:border-amber-500/50',
-              'transition-all duration-200'
-            )}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/[0.05] text-white/70 hover:text-white font-medium border border-white/[0.08] hover:border-white/[0.15] transition-all duration-200"
           >
             Voir tout l&apos;historique
             <ArrowRight className="w-4 h-4" />

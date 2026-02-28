@@ -4,12 +4,16 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertCircle, RefreshCw, Calendar, Trophy, Loader2, Crosshair,
-  Flame, Gem, Search, Filter, ChevronDown, ChevronUp, Star, X
+  Flame, Search, ChevronDown, Star, X
 } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { Header, LeagueSection, PronosticResult, AnalysisLoader } from '@/components'
+import { SportContextBanner } from '@/components/SportContextBanner'
 import { usePronostic } from '@/hooks/usePronostic'
-import { LeagueGroup, DateFilter, Match, PronosticResponse } from '@/types'
+import { LeagueGroup, DateFilter, Match, PronosticResponse, VIPTickets } from '@/types'
+import { SPORT_LEAGUES } from '@/lib/config/sportLeagues'
+import { DEFAULT_SPORT } from '@/lib/config/sports'
+import type { SportId } from '@/lib/config/sports'
 
 interface MatchesAPIResponse {
   success: boolean
@@ -36,21 +40,11 @@ const dateFilters: { id: DateFilter; label: string }[] = [
   { id: 'day-after', label: 'J+2' },
 ]
 
-// Competitions populaires pour les filtres rapides
-const POPULAR_LEAGUES = [
-  { id: 'all', name: 'Toutes', icon: '⚽' },
-  { id: 'champions-league', name: 'Champions League', icon: '🏆' },
-  { id: 'ligue-1', name: 'Ligue 1', icon: '🇫🇷' },
-  { id: 'premier-league', name: 'Premier League', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { id: 'la-liga', name: 'La Liga', icon: '🇪🇸' },
-  { id: 'serie-a', name: 'Serie A', icon: '🇮🇹' },
-  { id: 'bundesliga', name: 'Bundesliga', icon: '🇩🇪' },
-  { id: 'europa-league', name: 'Europa League', icon: '🌍' },
-]
-
 const MATCHES_PER_PAGE = 10
 
-export function DashboardClient() {
+export function DashboardClient({ sport = DEFAULT_SPORT }: { sport?: SportId }) {
+  // Filtres de compétitions dynamiques selon le sport actif
+  const leagueFilters = SPORT_LEAGUES[sport] ?? SPORT_LEAGUES[DEFAULT_SPORT]
   const [selectedDate, setSelectedDate] = useState<DateFilter>('today')
   const [leagues, setLeagues] = useState<LeagueGroup[]>([])
   const [totalMatches, setTotalMatches] = useState(0)
@@ -133,7 +127,7 @@ export function DashboardClient() {
     setMatchesError(null)
 
     try {
-      const response = await fetch(`/api/matches?date=${dateFilter}`)
+      const response = await fetch(`/api/matches?date=${dateFilter}&sport=${sport}`)
       const data: MatchesAPIResponse = await response.json()
 
       if (!data.success) {
@@ -155,9 +149,13 @@ export function DashboardClient() {
     }
   }, [])
 
+  // Recharger et réinitialiser quand le sport ou la date changent
   useEffect(() => {
+    setSelectedLeagueFilter('all')
+    setAnalyzedMatches(new Map())
+    setSearchQuery('')
     fetchMatches(selectedDate)
-  }, [selectedDate, fetchMatches])
+  }, [selectedDate, sport, fetchMatches])
 
   // Filtrage avance des matchs
   const filteredLeagues = useMemo(() => {
@@ -264,6 +262,17 @@ export function DashboardClient() {
     const map = new Map<string, MatchBadges>()
     analyzedMatches.forEach((data, matchId) => {
       map.set(matchId, data.badges)
+    })
+    return map
+  }, [analyzedMatches])
+
+  // Get ticket data map for ticket preview in sniper mode
+  const ticketDataMap = useMemo(() => {
+    const map = new Map<string, VIPTickets>()
+    analyzedMatches.forEach((data, matchId) => {
+      if (data.pronostic?.vip_tickets) {
+        map.set(matchId, data.pronostic.vip_tickets)
+      }
     })
     return map
   }, [analyzedMatches])
@@ -415,28 +424,28 @@ export function DashboardClient() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.08 }}
-        className="mb-4"
+        className="mb-3"
       >
         <div className="overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-          <div className="flex gap-1.5 min-w-max">
-            {POPULAR_LEAGUES.map((league) => (
+          <div className="flex gap-1 min-w-max">
+            {leagueFilters.map((league) => (
               <button
                 key={league.id}
                 onClick={() => setSelectedLeagueFilter(league.id)}
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[12px] font-medium
+                  flex items-center gap-1 px-2.5 py-1 rounded-pill text-[11px] font-medium
                   transition-all duration-150 whitespace-nowrap
                   ${selectedLeagueFilter === league.id
-                    ? 'bg-amber-500 text-black shadow-[0_2px_8px_rgba(245,158,11,0.3)]'
-                    : 'text-white/55 hover:text-white/80'
+                    ? 'bg-amber-500 text-black shadow-[0_1px_6px_rgba(245,158,11,0.25)]'
+                    : 'text-white/45 hover:text-white/70'
                   }
                 `}
                 style={selectedLeagueFilter !== league.id ? {
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.07)',
                 } : {}}
               >
-                <span className="text-[13px]">{league.icon}</span>
+                <span className="text-[11px]">{league.icon}</span>
                 <span>{league.name}</span>
               </button>
             ))}
@@ -449,7 +458,7 @@ export function DashboardClient() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-wrap items-center gap-2 mb-5"
+        className="flex flex-wrap items-center gap-2 mb-4"
       >
         {/* Favoris */}
         <button
@@ -470,7 +479,7 @@ export function DashboardClient() {
           )}
         </button>
 
-        {/* Sniper */}
+        {/* Sniper / Tickets mode */}
         <button
           onClick={() => setSniperMode(!sniperMode)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[12px] font-medium transition-all duration-150 ${
@@ -479,9 +488,10 @@ export function DashboardClient() {
               : 'text-white/55 hover:text-white/80'
           }`}
           style={!sniperMode ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' } : {}}
+          title="Affiche les tickets SAFE & FUN directement sur les cartes"
         >
           <Crosshair className={`w-3.5 h-3.5 ${sniperMode ? 'animate-pulse' : ''}`} />
-          Sniper
+          {sniperMode ? 'Vue Tickets' : 'Sniper'}
           {sniperMatchCount > 0 && (
             <span className="px-1.5 py-0 bg-orange-500/20 rounded-full text-[10px] font-bold tabular-nums">
               {sniperMatchCount}
@@ -517,55 +527,32 @@ export function DashboardClient() {
         </button>
       </motion.div>
 
-      {/* ── SNIPER INFO BANNER ──────────────────────────────────── */}
+      {/* ── SNIPER ACTIVE HINT ──────────────────────────────────── */}
       <AnimatePresence>
-        {sniperMode && (
+        {sniperMode && analyzedMatches.size === 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="mb-4 overflow-hidden"
+            transition={{ duration: 0.18 }}
+            className="mb-3 overflow-hidden"
           >
-            <div
-              className="p-3.5 rounded-macos"
-              style={{
-                background: 'rgba(255,159,10,0.08)',
-                border: '1px solid rgba(255,159,10,0.20)',
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                <Crosshair className="w-3.5 h-3.5 text-orange-400" />
-                <span className="text-[13px] font-semibold text-white/90">Mode Sniper actif</span>
-              </div>
-              <p className="text-[12px] text-white/50 mb-2.5">
-                Seuls les matchs avec VALUE (EV &gt; 5%) ou SAFE (Confiance ≥ 80%) sont affichés.
-              </p>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-pill font-bold" style={{ background: 'rgba(255,159,10,0.15)', color: '#FF9F0A', border: '1px solid rgba(255,159,10,0.25)' }}>
-                    <Flame className="w-2.5 h-2.5" /> VALUE
-                  </span>
-                  <span className="text-white/35">= EV &gt; 5%</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-pill font-bold" style={{ background: 'rgba(10,132,255,0.14)', color: '#0A84FF', border: '1px solid rgba(10,132,255,0.25)' }}>
-                    <Gem className="w-2.5 h-2.5" /> SAFE
-                  </span>
-                  <span className="text-white/35">= Confiance ≥ 80%</span>
-                </div>
-              </div>
-            </div>
+            <p className="text-[12px] text-white/35 text-center py-2">
+              Analysez des matchs pour voir leurs tickets SAFE & FUN directement ici.
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── SPORT CONTEXT BANNER ────────────────────────────────── */}
+      <SportContextBanner sport={sport} />
 
       {/* ── STATS BAR ───────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.12 }}
-        className="flex items-center gap-4 mb-5 px-0.5"
+        className="flex items-center gap-4 mb-4 px-0.5"
       >
         <div className="flex items-center gap-1.5">
           <motion.div
@@ -719,6 +706,8 @@ export function DashboardClient() {
                         onGeneratePronostic={generatePronostic}
                         loadingMatchId={loadingMatchId}
                         analyzedMatches={badgesMap}
+                        ticketDataMap={ticketDataMap}
+                        ticketViewMode={sniperMode}
                         favorites={favorites}
                         onToggleFavorite={toggleFavorite}
                         hideHeader={true}
