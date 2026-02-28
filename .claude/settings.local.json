@@ -47,7 +47,13 @@
       "Bash(printf:*)",
       "Bash(npx skills add:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(xargs:*)",
+      "Bash(sort:*)"
     ]
   }
 }
